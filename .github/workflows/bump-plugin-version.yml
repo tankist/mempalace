@@ -1,0 +1,34 @@
+name: Sync Plugin Version
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract version from version.py
+        id: version
+        run: |
+          VERSION=$(python3 -c "exec(open('mempalace/version.py').read()); print(__version__)")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update plugin.json
+        run: |
+          jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' .claude-plugin/plugin.json > tmp.json && mv tmp.json .claude-plugin/plugin.json
+
+      - name: Update marketplace.json
+        run: |
+          jq --arg v "${{ steps.version.outputs.version }}" '.plugins[0].version = $v' .claude-plugin/marketplace.json > tmp.json && mv tmp.json .claude-plugin/marketplace.json
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
+          git diff --staged --quiet || git commit -m "chore: sync plugin version to ${{ steps.version.outputs.version }}" && git push
