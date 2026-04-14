@@ -32,7 +32,7 @@ from pathlib import Path
 
 from .config import MempalaceConfig, sanitize_name, sanitize_content
 from .version import __version__
-import chromadb
+from .backends.chroma import ChromaBackend, ChromaCollection
 from .query_sanitizer import sanitize_query
 from .searcher import search_memories
 from .palace_graph import (
@@ -177,7 +177,7 @@ def _get_client():
     mtime_changed = current_mtime != 0.0 and abs(current_mtime - _palace_db_mtime) > 0.01
 
     if _client_cache is None or inode_changed or mtime_changed:
-        _client_cache = chromadb.PersistentClient(path=_config.palace_path)
+        _client_cache = ChromaBackend.make_client(_config.palace_path)
         _collection_cache = None
         _metadata_cache = None
         _metadata_cache_time = 0
@@ -192,13 +192,15 @@ def _get_collection(create=False):
     try:
         client = _get_client()
         if create:
-            _collection_cache = client.get_or_create_collection(
-                _config.collection_name, metadata={"hnsw:space": "cosine"}
+            _collection_cache = ChromaCollection(
+                client.get_or_create_collection(
+                    _config.collection_name, metadata={"hnsw:space": "cosine"}
+                )
             )
             _metadata_cache = None
             _metadata_cache_time = 0
         elif _collection_cache is None:
-            _collection_cache = client.get_collection(_config.collection_name)
+            _collection_cache = ChromaCollection(client.get_collection(_config.collection_name))
             _metadata_cache = None
             _metadata_cache_time = 0
         return _collection_cache
