@@ -408,79 +408,81 @@ onBeforeUnmount(() => {
   <section class="hero" id="hero">
     <span class="corner-ticks" aria-hidden="true"><span></span></span>
 
-    <div class="hero-copy">
-      <h1 class="display">
-        <span class="line">Memory is</span>
-        <span class="line line-2">identity.</span>
-      </h1>
-      <p class="lede">
-        An AI that forgets cannot know you. MemPalace keeps every word you have
-        shared — verbatim, on your machine, forever available. One hundred
-        percent recall by design.
-      </p>
-      <form class="waitlist waitlist-hero" data-source="hero" novalidate>
-        <div class="waitlist-head">
-          <span class="waitlist-pulse" aria-hidden="true"></span>
-          <span class="waitlist-eyebrow">Subscribe for updates</span>
-        </div>
-        <div class="waitlist-row">
-          <input
-            type="email"
-            class="waitlist-input"
-            name="email"
-            placeholder="you@example.com"
-            autocomplete="email"
-            aria-label="Email address"
-            required
-          />
-          <button type="submit" class="waitlist-submit">
-            <span class="waitlist-label-default">Join the list</span>
-            <span class="waitlist-label-pending" aria-hidden="true">Joining…</span>
-            <svg class="waitlist-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6"/>
-            </svg>
-            <svg class="waitlist-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <path d="M5 12l5 5 9-11"/>
-            </svg>
-          </button>
-        </div>
-        <p class="waitlist-msg" aria-live="polite"></p>
-      </form>
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <h1 class="display">
+          <span class="line">Memory is</span>
+          <span class="line line-2">identity.</span>
+        </h1>
+        <p class="lede">
+          An AI that forgets cannot know you. MemPalace keeps every word you have
+          shared — verbatim, on your machine, forever available. One hundred
+          percent recall by design.
+        </p>
+        <form class="waitlist waitlist-hero" data-source="hero" novalidate>
+          <div class="waitlist-head">
+            <span class="waitlist-pulse" aria-hidden="true"></span>
+            <span class="waitlist-eyebrow">Subscribe for updates</span>
+          </div>
+          <div class="waitlist-row">
+            <input
+              type="email"
+              class="waitlist-input"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              aria-label="Email address"
+              required
+            />
+            <button type="submit" class="waitlist-submit">
+              <span class="waitlist-label-default">Join the list</span>
+              <span class="waitlist-label-pending" aria-hidden="true">Joining…</span>
+              <svg class="waitlist-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+              <svg class="waitlist-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M5 12l5 5 9-11"/>
+              </svg>
+            </button>
+          </div>
+          <p class="waitlist-msg" aria-live="polite"></p>
+        </form>
 
-      <div class="hero-secondary">
-        <a href="/guide/getting-started">Read the docs</a>
-        <span class="sep" aria-hidden="true">·</span>
-        <a href="https://github.com/MemPalace/mempalace">GitHub ↗</a>
+        <div class="hero-secondary">
+          <a href="/guide/getting-started">Read the docs</a>
+          <span class="sep" aria-hidden="true">·</span>
+          <a href="https://github.com/MemPalace/mempalace">GitHub ↗</a>
+        </div>
+
       </div>
 
-    </div>
+      <!-- Palace video visual -->
+      <div class="palace-stage" aria-hidden="true">
+        <div class="halo"></div>
 
-    <!-- Palace video visual -->
-    <div class="palace-stage" aria-hidden="true">
-      <div class="halo"></div>
+        <div class="stars">
+          <i style="top:12%; left:22%;  --t:5s;   --d:0.0s"></i>
+          <i style="top:18%; left:74%;  --t:6s;   --d:1.2s"></i>
+          <i style="top:34%; left:8%;   --t:4s;   --d:0.6s"></i>
+          <i style="top:44%; left:88%;  --t:7s;   --d:0.3s"></i>
+          <i style="top:62%; left:14%;  --t:5.5s; --d:1.8s"></i>
+          <i style="top:72%; left:82%;  --t:4.5s; --d:0.9s"></i>
+          <i style="top:82%; left:38%;  --t:6.2s; --d:2.4s"></i>
+          <i style="top:28%; left:52%;  --t:5.2s; --d:3.0s"></i>
+          <i style="top:88%; left:60%;  --t:4.8s; --d:1.5s"></i>
+          <i style="top:6%;  left:48%;  --t:6.8s; --d:0.4s"></i>
+        </div>
 
-      <div class="stars">
-        <i style="top:12%; left:22%;  --t:5s;   --d:0.0s"></i>
-        <i style="top:18%; left:74%;  --t:6s;   --d:1.2s"></i>
-        <i style="top:34%; left:8%;   --t:4s;   --d:0.6s"></i>
-        <i style="top:44%; left:88%;  --t:7s;   --d:0.3s"></i>
-        <i style="top:62%; left:14%;  --t:5.5s; --d:1.8s"></i>
-        <i style="top:72%; left:82%;  --t:4.5s; --d:0.9s"></i>
-        <i style="top:82%; left:38%;  --t:6.2s; --d:2.4s"></i>
-        <i style="top:28%; left:52%;  --t:5.2s; --d:3.0s"></i>
-        <i style="top:88%; left:60%;  --t:4.8s; --d:1.5s"></i>
-        <i style="top:6%;  left:48%;  --t:6.8s; --d:0.4s"></i>
+        <video
+          class="palace-video"
+          src="/hero_video.mp4"
+          autoplay
+          muted
+          loop
+          playsinline
+          disablepictureinpicture
+        ></video>
       </div>
-
-      <video
-        class="palace-video"
-        src="/hero_video.mp4"
-        autoplay
-        muted
-        loop
-        playsinline
-        disablepictureinpicture
-      ></video>
     </div>
   </section>
 
@@ -1039,15 +1041,24 @@ body.mempalace-active { overflow-x: hidden; }
 
 /* Hero */
 .mempalace-landing .hero {
+  position: relative;
+  width: 100%;
   min-height: calc(100vh - 54px);
   max-height: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: clamp(2rem, 4vw, 3.5rem);
+  padding-bottom: clamp(2rem, 4vw, 3.5rem);
+  overflow: hidden;
+}
+.mempalace-landing .hero-inner {
+  width: 100%;
+  max-width: 1240px;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: clamp(2rem, 4vw, 4rem);
   align-items: center;
-  padding-top: clamp(2rem, 4vw, 3.5rem);
-  padding-bottom: clamp(2rem, 4vw, 3.5rem);
-  overflow: hidden;
 }
 .mempalace-landing .hero-copy { position: relative; z-index: 3; }
 .mempalace-landing .hero h1 {
@@ -1957,7 +1968,7 @@ body.mempalace-active { overflow-x: hidden; }
   .mempalace-landing .mech:nth-child(2) { border-bottom: var(--rule) solid var(--hair); }
 }
 @media (max-width: 900px) {
-  .mempalace-landing .hero { grid-template-columns: 1fr; gap: 2rem; }
+  .mempalace-landing .hero-inner { grid-template-columns: 1fr; gap: 2rem; }
   .mempalace-landing .palace-stage { justify-self: center; max-width: 400px; order: -1; aspect-ratio: 1 / 0.85; }
   .mempalace-landing .anatomy-head { grid-template-columns: 1fr; }
   .mempalace-landing .anatomy-diagram { grid-template-columns: 1fr; }
