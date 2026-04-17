@@ -50,7 +50,7 @@ onMounted(() => {
           try { data = await res.json() } catch (_) { /* no body */ }
 
           if (res.ok) {
-            setState('success', (data && data.message) || "You're on the list! We'll be in touch.")
+            setState('success', (data && data.message) || "Success! You're on the list for updates.")
             // keep inputs disabled so they can't resubmit accidentally
             input.value = email
             return

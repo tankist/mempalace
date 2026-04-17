@@ -6,21 +6,21 @@
       <div>
         <span class="eyebrow">the method of loci, updated</span>
         <h2 class="display">
-          Wings. Rooms. <em>Drawers.</em>
+          Wings. Rooms. Closets. <em>Drawers.</em>
         </h2>
       </div>
       <p class="lede">
         An ancient memory technique, reworked for a machine. Broad categories
-        nest time-based groupings; time-based groupings hold verbatim drawers.
-        A symbolic index lets the model scan thousands of drawers in a single
-        pass and open only the ones it needs.
+        nest time-based groupings; time-based groupings bundle topics; topics
+        hold verbatim drawers. A symbolic index lets the model scan thousands
+        of drawers in a single pass and open only the ones it needs.
       </p>
     </div>
 
     <div class="anatomy-diagram">
       <article class="stratum">
         <span class="n">W — wing</span>
-        <h3>The <em>Wing</em></h3>
+        <h3>The <em>Wings</em></h3>
         <p class="sub">people · projects · topics</p>
         <p>A broad region of the palace, keyed to a real entity — a person by name, a project by codename, a domain of your life. Entity-first, always.</p>
         <div class="diagram">
@@ -36,7 +36,7 @@
 
       <article class="stratum">
         <span class="n">R — room</span>
-        <h3>The <em>Room</em></h3>
+        <h3>The <em>Rooms</em></h3>
         <p class="sub">days · sessions · threads</p>
         <p>Inside a wing sit rooms — discrete units of time. One room per day, or one per session. Walk the corridor and the palace unfolds chronologically, room by room.</p>
         <div class="diagram">
@@ -51,8 +51,31 @@
       </article>
 
       <article class="stratum">
+        <span class="n">C — closet</span>
+        <h3>The <em>Closets</em></h3>
+        <p class="sub">topics · threads · bundles</p>
+        <p>Inside a room, closets group related drawers by topic or thread. Open one closet and you see every drawer on that subject together — no need to walk the whole room.</p>
+        <div class="diagram">
+          <svg viewBox="0 0 200 80" fill="none" stroke="currentColor" stroke-width="1" style="color:var(--prism);">
+            <rect x="10"  y="14" width="54" height="52" />
+            <rect x="73"  y="14" width="54" height="52" />
+            <rect x="136" y="14" width="54" height="52" />
+            <line x1="37"  y1="14" x2="37"  y2="66" opacity="0.5"/>
+            <line x1="100" y1="14" x2="100" y2="66" opacity="0.5"/>
+            <line x1="163" y1="14" x2="163" y2="66" opacity="0.5"/>
+            <circle cx="33"  cy="40" r="1.2" fill="currentColor"/>
+            <circle cx="41"  cy="40" r="1.2" fill="currentColor"/>
+            <circle cx="96"  cy="40" r="1.2" fill="currentColor"/>
+            <circle cx="104" cy="40" r="1.2" fill="currentColor"/>
+            <circle cx="159" cy="40" r="1.2" fill="currentColor"/>
+            <circle cx="167" cy="40" r="1.2" fill="currentColor"/>
+          </svg>
+        </div>
+      </article>
+
+      <article class="stratum">
         <span class="n">D — drawer</span>
-        <h3>The <em>Drawer</em></h3>
+        <h3>The <em>Drawers</em></h3>
         <p class="sub">verbatim · permanent · exact</p>
         <p>Each room holds drawers. A drawer is a single chunk of verbatim content — the exact words, untouched. The palace's promise is kept here.</p>
         <div class="diagram">
