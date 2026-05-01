@@ -278,7 +278,25 @@ def _get_collection(create=False):
     global _collection_cache, _metadata_cache, _metadata_cache_time
     try:
         client = _get_client()
+        # ChromaDB 1.x persists the EF *identity* (its ``name()``) with the
+        # collection but not the EF *instance/configuration*. So a reader or
+        # writer that omits ``embedding_function=`` silently gets chromadb's
+        # built-in ``DefaultEmbeddingFunction`` — its ``name()`` matches the
+        # one we spoof in ``mempalace.embedding`` (both report ``"default"``,
+        # the identity check passes), but the *provider list* is chromadb's
+        # default rather than the user's resolved device. On bleeding-edge
+        # interpreters (#1299: python 3.14 + chromadb 1.5.x on Apple Silicon)
+        # that default provider selection can SIGSEGV the host process on
+        # first ``col.add()``. The miner / Stop hook ingest path avoids this
+        # because it routes through ``ChromaBackend.get_collection``, which
+        # resolves the EF via ``ChromaBackend._resolve_embedding_function``;
+        # the MCP server bypassed that abstraction. Resolve the EF inside the
+        # branches that actually open a collection so warm-cache reads stay
+        # zero-cost. Reuse the backend helper so the two call sites can't
+        # drift on logging or fallback semantics.
         if create:
+            ef = ChromaBackend._resolve_embedding_function()
+            ef_kwargs = {"embedding_function": ef} if ef is not None else {}
             # hnsw:num_threads=1 disables ChromaDB's multi-threaded ParallelFor
             # HNSW insert path, which has a race in repairConnectionsForUpdate /
             # addPoint (see issues #974, #965). Set via metadata on fresh
@@ -292,7 +310,7 @@ def _get_collection(create=False):
             # below skips the metadata-comparison codepath for existing
             # collections, mirroring the backend-layer fix from #1262.
             try:
-                raw = client.get_collection(_config.collection_name)
+                raw = client.get_collection(_config.collection_name, **ef_kwargs)
             except _ChromaNotFoundError:
                 raw = client.create_collection(
                     _config.collection_name,
@@ -301,13 +319,16 @@ def _get_collection(create=False):
                         "hnsw:num_threads": 1,
                         **_HNSW_BLOAT_GUARD,
                     },
+                    **ef_kwargs,
                 )
             _pin_hnsw_threads(raw)
             _collection_cache = ChromaCollection(raw)
             _metadata_cache = None
             _metadata_cache_time = 0
         elif _collection_cache is None:
-            raw = client.get_collection(_config.collection_name)
+            ef = ChromaBackend._resolve_embedding_function()
+            ef_kwargs = {"embedding_function": ef} if ef is not None else {}
+            raw = client.get_collection(_config.collection_name, **ef_kwargs)
             _pin_hnsw_threads(raw)
             _collection_cache = ChromaCollection(raw)
             _metadata_cache = None
