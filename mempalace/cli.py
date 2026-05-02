@@ -699,7 +699,7 @@ def cmd_repair(args):
             return
 
         try:
-            rebuild_from_sqlite(
+            counts = rebuild_from_sqlite(
                 source_palace=source_path,
                 dest_palace=palace_path,
                 archive_existing_dest=archive_existing,
@@ -712,6 +712,15 @@ def cmd_repair(args):
                 "\n  Rebuild partial — see message above. "
                 f"Failed in collection: {exc.failed_collection}"
             )
+            sys.exit(1)
+        # An empty counts dict is rebuild_from_sqlite's documented signal
+        # for a validation refusal (missing source, existing dest,
+        # in-place without --archive-existing). The library already
+        # printed an actionable message; exit non-zero so unattended
+        # scripts/CI distinguish "invalid inputs" from a successful
+        # rebuild that legitimately found zero rows (which still returns
+        # a populated dict with 0-valued counts).
+        if not counts:
             sys.exit(1)
         return
 

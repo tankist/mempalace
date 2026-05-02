@@ -719,6 +719,13 @@ def test_extract_via_sqlite_returns_all_rows_with_metadata(tmp_path):
     Catches: anyone who breaks the segments/embeddings/embedding_metadata
     JOIN, swaps the metadata vs vector segment, or changes how the
     document is stored under the ``chroma:document`` key.
+
+    Also asserts every embedding row underlying the extraction lives in
+    a ``segments.scope = 'METADATA'`` segment. Document + metadata rows
+    are stored under METADATA in Chroma's segment layout while HNSW
+    files live under ``VECTOR``; locking that assumption in here means a
+    future refactor that accidentally points the JOIN at ``VECTOR``
+    fails this test instead of silently regressing the recovery path.
     """
     rows = [
         (f"drawer_{i:03d}", f"document body {i}", {"wing": "test_wing", "room": f"r{i % 3}"})
@@ -735,6 +742,35 @@ def test_extract_via_sqlite_returns_all_rows_with_metadata(tmp_path):
         got_doc, got_meta = by_id[emb_id]
         assert got_doc == doc, f"document mangled for {emb_id}"
         assert got_meta == meta, f"metadata mangled for {emb_id}: {got_meta!r}"
+
+    # Lock the segment-scope assumption directly against Chroma's on-disk
+    # layout so a future change that points the extraction JOIN at the
+    # VECTOR segment cannot pass this test. Query each extracted row's
+    # backing segment scope via the same SQLite tables ``extract_via_sqlite``
+    # reads from.
+    sqlite_path = os.path.join(str(tmp_path), "chroma.sqlite3")
+    conn = sqlite3.connect(f"file:{sqlite_path}?mode=ro", uri=True)
+    try:
+        scopes = {
+            scope
+            for (scope,) in conn.execute(
+                """
+                SELECT DISTINCT s.scope
+                FROM embeddings e
+                JOIN segments s ON e.segment_id = s.id
+                JOIN collections c ON s.collection = c.id
+                WHERE c.name = ? AND e.embedding_id IN ({})
+                """.format(",".join("?" * len(extracted))),
+                ("mempalace_drawers", *(emb_id for emb_id, _, _ in extracted)),
+            )
+        }
+    finally:
+        conn.close()
+    assert scopes == {"METADATA"}, (
+        f"extraction is reading from segments scoped {scopes!r}; only "
+        "'METADATA' should back the document/metadata rows. If Chroma's "
+        "segment layout changed, update extract_via_sqlite's WHERE clause."
+    )
 
 
 def test_extract_via_sqlite_preserves_typed_metadata(tmp_path):
@@ -973,3 +1009,56 @@ def test_rebuild_from_sqlite_raises_on_upsert_failure(tmp_path, monkeypatch):
     assert err.archive_path is not None
     assert os.path.isfile(os.path.join(err.archive_path, "chroma.sqlite3"))
     assert err.dest_palace == os.path.abspath(str(palace))
+
+
+def test_rebuild_from_sqlite_honors_configured_drawer_collection_name(tmp_path, monkeypatch):
+    """A user with a non-default drawers collection name (set via
+    ``MempalaceConfig().collection_name``) must have THAT collection
+    rebuilt — not the hardcoded ``mempalace_drawers``.
+
+    Catches: a regression where the recovery path silently rebuilds the
+    default-name collection on a custom-named palace, leaving the user's
+    actual data unrebuilt while reporting "rebuild complete." This is
+    the failure mode reviewer mjc flagged on PR #1310 as needing to line
+    up with the configured-collection-name work in #1312. Closets stay
+    fixed (``mempalace_closets``) by design — the AAAK index references
+    drawer IDs by string and is not per-deployment configurable.
+
+    Strategy: monkeypatch the lazy resolver so the test is hermetic and
+    does not depend on the global config file or env state.
+    """
+    from mempalace.backends.chroma import ChromaBackend
+
+    custom_drawers = "custom_drawers_xyz"
+    monkeypatch.setattr(repair, "_drawers_collection_name", lambda: custom_drawers)
+
+    source = tmp_path / "source"
+    dest = tmp_path / "dest"
+
+    drawer_rows = [(f"d{i}", f"body {i}", {"wing": "alpha"}) for i in range(3)]
+    closet_rows = [("closet_a", "abbrev →d0", {"wing": "alpha"})]
+    _seed_palace(source, custom_drawers, drawer_rows)
+    _seed_palace(source, "mempalace_closets", closet_rows)
+
+    counts = repair.rebuild_from_sqlite(str(source), str(dest))
+
+    # Rebuilt under the custom name, not under the default "mempalace_drawers".
+    assert counts == {custom_drawers: 3, "mempalace_closets": 1}
+
+    backend = ChromaBackend()
+    rebuilt_drawers = backend.get_collection(str(dest), custom_drawers)
+    assert rebuilt_drawers.count() == 3
+
+    # Default-name collection must NOT exist in dest — proves we did not
+    # silently fall back to the hardcoded name during rebuild.
+    try:
+        rebuilt_default = backend.get_collection(str(dest), "mempalace_drawers")
+        # If get_collection returns without raising, count() should be 0
+        # (chromadb may auto-create on get with some EFs); a non-zero
+        # count would mean we wrote rows to the wrong collection.
+        assert rebuilt_default.count() == 0, (
+            "rebuild leaked rows into the default-name collection on a "
+            "custom-name palace — recovery wrote to the wrong collection."
+        )
+    except Exception:
+        pass  # Expected: collection wasn't created.

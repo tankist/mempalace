@@ -43,11 +43,46 @@ from .backends.chroma import ChromaBackend, hnsw_capacity_status
 
 COLLECTION_NAME = "mempalace_drawers"
 
-# Collections rebuilt by ``rebuild_from_sqlite``. Order matters for the
-# upsert pass — drawers carry the bulk of the data, closets are the AAAK
-# index layer and reference drawer IDs by string in their documents (no
-# foreign-key validation, so ordering is informational, not load-bearing).
-RECOVERABLE_COLLECTIONS = ("mempalace_drawers", "mempalace_closets")
+# The closets collection (AAAK index layer) is intentionally fixed —
+# closets reference drawer IDs by string and live alongside drawers in the
+# same palace; renaming the closets collection per-deployment would break
+# cross-palace AAAK lookups. Drawer collection name comes from config
+# (see ``_recoverable_collections``).
+CLOSETS_COLLECTION_NAME = "mempalace_closets"
+
+
+def _drawers_collection_name() -> str:
+    """Resolve the drawers collection name from user config, falling back
+    to the module default ``COLLECTION_NAME`` if config is unreadable.
+
+    Recovery flows must honor ``MempalaceConfig().collection_name`` so a
+    user with a non-default drawer collection (e.g. multi-palace setups)
+    rebuilds the right rows. Closets remain fixed — see
+    ``CLOSETS_COLLECTION_NAME``.
+    """
+    try:
+        from .config import MempalaceConfig
+
+        return MempalaceConfig().collection_name or COLLECTION_NAME
+    except Exception:
+        return COLLECTION_NAME
+
+
+def _recoverable_collections() -> tuple[str, ...]:
+    """Collections rebuilt by ``rebuild_from_sqlite``, in upsert order.
+
+    Drawers first (bulk data), then closets (AAAK index layer that
+    references drawer IDs by string in their documents — no
+    foreign-key validation, so ordering is informational, not
+    load-bearing).
+    """
+    return (_drawers_collection_name(), CLOSETS_COLLECTION_NAME)
+
+
+# Back-compat alias for callers that imported the constant. New code
+# should call ``_recoverable_collections()`` so config changes are picked
+# up at call time.
+RECOVERABLE_COLLECTIONS = (COLLECTION_NAME, CLOSETS_COLLECTION_NAME)
 
 
 def _get_palace_path():
@@ -487,12 +522,11 @@ def _rebuild_one_collection(
     caller can stop the loop and print recovery instructions instead of
     silently shipping a partial palace.
     """
-    col = backend.create_collection(dest_palace, collection_name)
-
     ids: list[str] = []
     docs: list[str] = []
     metas: list[dict] = []
     upserted = 0
+    col = None
 
     def _flush() -> int:
         nonlocal upserted
@@ -507,6 +541,14 @@ def _rebuild_one_collection(
         return upserted
 
     try:
+        # ``create_collection`` lives inside the try so a Chroma-side
+        # "Collection already exists" failure (which can happen when the
+        # process-wide System cache still holds a pre-archive schema) is
+        # reported as a structured ``RebuildPartialError`` carrying
+        # ``archive_path`` — instead of an unstructured exception that
+        # strands the user without recovery instructions.
+        col = backend.create_collection(dest_palace, collection_name)
+
         for emb_id, doc, meta in extract_via_sqlite(source_palace, collection_name):
             ids.append(emb_id)
             docs.append(doc or "")
@@ -664,8 +706,14 @@ def rebuild_from_sqlite(
 
     Returns a ``{collection_name: row_count}`` dict so callers (CLI,
     tests) can verify the per-collection rebuild count without parsing
-    stdout. Returns ``{}`` on validation failures (missing source,
-    refusing to overwrite). Raises :class:`RebuildPartialError` if a
+    stdout. A successful rebuild always returns a dict with one key per
+    recoverable collection (values may be ``0`` when a collection is
+    legitimately empty in the source). The empty dict ``{}`` is reserved
+    for validation refusals (missing source DB, refusing to overwrite an
+    existing dest, in-place mode without ``archive_existing_dest``); CLI
+    callers should treat ``{}`` as an error and exit non-zero so CI and
+    scripts can distinguish "invalid inputs" from "successful recovery
+    that found zero rows." Raises :class:`RebuildPartialError` if a
     chromadb upsert fails partway through; the dest palace is left in
     place so the user can inspect what landed, and the in-place archive
     (when applicable) is reported in the error so the user can re-run
@@ -765,31 +813,42 @@ def rebuild_from_sqlite(
 
     os.makedirs(dest_palace, exist_ok=True)
 
+    # Backend lifetime is wrapped in try/finally so the dest palace's
+    # PersistentClient handle (opened lazily inside ``create_collection``
+    # / ``get_collection``) is released on every exit path: success,
+    # ``RebuildPartialError``, or any unexpected exception. Without this,
+    # a long-running process that calls ``rebuild_from_sqlite`` would
+    # leak SQLite/HNSW file handles into Chroma's ``SharedSystemClient``
+    # cache, surfacing later as "Collection already exists" on the next
+    # in-place rebuild or as a Windows file-lock failure on cleanup
+    # (cf. #1285's lifecycle hardening for the legacy rebuild path).
     backend = ChromaBackend()
     counts: dict[str, int] = {}
+    try:
+        for cname in _recoverable_collections():
+            print(f"\n  [{cname}]")
+            upserted = _rebuild_one_collection(
+                backend=backend,
+                source_palace=source_palace,
+                dest_palace=dest_palace,
+                collection_name=cname,
+                batch_size=batch_size,
+                archive_path=archive_path,
+                counts_so_far=counts,
+            )
+            counts[cname] = upserted
+            if upserted == 0:
+                print(f"    no rows found for {cname} in source palace")
+            else:
+                print(f"    done: {upserted} rows in {cname}")
 
-    for cname in RECOVERABLE_COLLECTIONS:
-        print(f"\n  [{cname}]")
-        upserted = _rebuild_one_collection(
-            backend=backend,
-            source_palace=source_palace,
-            dest_palace=dest_palace,
-            collection_name=cname,
-            batch_size=batch_size,
-            archive_path=archive_path,
-            counts_so_far=counts,
-        )
-        counts[cname] = upserted
-        if upserted == 0:
-            print(f"    no rows found for {cname} in source palace")
-        else:
-            print(f"    done: {upserted} rows in {cname}")
-
-    print(f"\n  Rebuild complete. {sum(counts.values())} total rows.")
-    if archive_path is not None:
-        print(f"  Original palace archived at: {archive_path}")
-    print(f"{'=' * 55}\n")
-    return counts
+        print(f"\n  Rebuild complete. {sum(counts.values())} total rows.")
+        if archive_path is not None:
+            print(f"  Original palace archived at: {archive_path}")
+        print(f"{'=' * 55}\n")
+        return counts
+    finally:
+        backend.close()
 
 
 def status(palace_path=None) -> dict:
